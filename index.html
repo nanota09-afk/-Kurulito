@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプルルーレット</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f6fa;
+            font-family: sans-serif;
+        }
+
+        .roulette-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        /* 矢印（ポインター）のスタイリング */
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #ff4757;
+            z-index: 10;
+        }
+
+        /* ルーレット本体の回転アニメーション設定 */
+        #wheel {
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #2ed573;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #26af5f;
+        }
+
+        button:disabled {
+            background-color: #a4b0be;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="roulette-container">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="400" height="400"></canvas>
+    </div>
+    <button id="spin-btn">スタート！</button>
+
+    <script>
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spin-btn');
+
+        // ルーレットの項目
+        const items = ['大吉', '中吉', '小吉', '吉', '凶', '大凶'];
+        const numItems = items.length;
+        const center = 200; // キャンバスの中心座標 (400 / 2)
+        const radius = 200;
+
+        // 各セグメントの角度（ラジアン）
+        const arcSize = (2 * Math.PI) / numItems;
+
+        // 1. ルーレットの描画
+        function drawWheel() {
+            for (let i = 0; i < numItems; i++) {
+                const angle = i * arcSize;
+                
+                // 扇形の描画
+                ctx.beginPath();
+                ctx.fillStyle = i % 2 === 0 ? '#ff7675' : '#74b9ff'; // 2色を交互に配置
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, radius, angle, angle + arcSize);
+                ctx.lineTo(center, center);
+                ctx.fill();
+
+                // テキストの描画
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate(angle + arcSize / 2); // 扇形の中央に回転
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(items[i], radius - 30, 6); // 外枠から少し内側に配置
+                ctx.restore();
+            }
+        }
+
+        // 2. 回転ロジック
+        let currentRotation = 0;
+
+        function spin() {
+            spinBtn.disabled = true;
+
+            // 最低5回転（1800度）させてから、ランダムに0〜360度プラスする
+            const extraDegrees = Math.floor(Math.random() * 360);
+            const totalSpin = 1800 + extraDegrees;
+            
+            currentRotation += totalSpin;
+
+            // CSSのtransformで回転させる（ハードウェアアクセラレーションが効くため滑らか）
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+            // アニメーションが終了する4秒後にボタンを再有効化
+            setTimeout(() => {
+                spinBtn.disabled = false;
+                
+                // 必要であればここで当選判定のロジック（後述）を呼び出す
+                const actualDegrees = currentRotation % 360;
+                // ※上部の矢印（270度の位置）に対する当選計算をここに挟めます
+            }, 4000);
+        }
+
+        // 初期描画とイベント登録
+        drawWheel();
+        spinBtn.addEventListener('click', spin);
+    </script>
+</body>
+</html>
