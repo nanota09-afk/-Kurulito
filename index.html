@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クルリト | 人数変更＆シナリオ操作ルーレット</title>
+    <title>クルリト | ステルスルーレット</title>
     <style>
         body {
             display: flex;
@@ -16,7 +16,7 @@
             color: #2f3542;
         }
 
-        h1 { margin-bottom: 5px; color: #2f3542; }
+        h1 { margin-bottom: 5px; color: #2f3542; cursor: default; user-select: none; }
         .subtitle { font-size: 14px; color: #747d8c; margin-bottom: 20px; }
         .main-layout { display: flex; flex-direction: column; align-items: center; gap: 30px; width: 100%; max-width: 500px; }
         .roulette-container { position: relative; }
@@ -62,7 +62,6 @@
             border-radius: 8px; resize: none; box-sizing: border-box; font-size: 16px; margin-bottom: 10px;
         }
 
-        /* 人数入力欄のスタイル */
         .count-setting {
             display: flex;
             align-items: center;
@@ -77,24 +76,24 @@
             border-radius: 8px; font-size: 16px; text-align: center;
         }
 
-        /* 結果表示 */
         .result-list { list-style: none; padding: 0; margin: 0; }
         .result-list li { padding: 10px; border-bottom: 1px solid #f1f2f6; font-size: 16px; display: flex; justify-content: space-between; }
         .result-list li:last-child { border-bottom: none; font-weight: bold; color: #ff4757; background-color: #ffeaa7; border-radius: 4px; }
         .rank { font-weight: bold; color: #3742fa; }
 
-        /* ★裏設定エリアのスタイル */
+        /* 👑 裏設定エリア：完全に初期状態を非表示(none)に */
         .secret-area {
-            background-color: #fff5f5; /* テスト用に薄い赤にしています */
+            display: none;
+            background-color: #fff5f5;
             border: 1px dashed #ff4757;
-            /* display: none; */ /* 👈 本番で隠すときは、先頭の「/*」と後ろの「*/」を消してください */
+            margin-bottom: 15px;
         }
     </style>
 </head>
 <body>
 
-    <h1>🎡 クルリト</h1>
-    <div class="subtitle">カスタムオンラインルーレット（人数設定版）</div>
+    <h1 id="title-trigger">🎡 クルリト</h1>
+    <div class="subtitle">カスタムオンラインルーレット</div>
 
     <div class="main-layout">
         <div class="roulette-container">
@@ -106,25 +105,23 @@
             <button id="spin-btn">ルーレットを回す！</button>
         </div>
 
-        <div class="secret-area">
-            <label style="color: #ff4757;">🤫 【裏設定】当選させる順番（改行区切り）</label>
-            <textarea id="secret-order" placeholder="例：&#13;2番&#13;5番&#13;2番" style="border-color: #ff4757;"></textarea>
-            <small style="color: #747d8c; font-size: 11px;">※ここに書いた順番で当たります。「2番」のように指定してください。無くなると自動で完全ランダムになります。</small>
+        <div id="secret-zone" class="secret-area">
+            <label style="color: #ff4757;">🤫 【裏設定】当選させるマスの番号（自動ループ）</label>
+            <textarea id="secret-order" placeholder="例：&#13;2&#13;3" style="border-color: #ff4757;"></textarea>
+            <small style="color: #747d8c; font-size: 11px;">※「メンバーの名前」の上から数えて何番目かを半角数字で入力してください。</small>
         </div>
 
         <div class="config-area">
             <div class="count-setting">
                 <label for="member-count" style="margin-bottom: 0;">ルーレットの人数：</label>
-                <input type="number" id="member-count" min="2" max="50" value="5">
+                <input type="number" id="member-count" min="2" max="50" value="3">
                 <span style="font-size: 14px; color: #747d8c;">人</span>
             </div>
 
-            <label for="member-input">メンバーの名前（編集も可能です）</label>
+            <label for="member-input">メンバーの名前</label>
             <textarea id="member-input">1番
 2番
-3番
-4番
-5番</textarea>
+3番</textarea>
             <button id="update-btn" style="padding: 8px; font-size: 14px; background-color: #54a0ff; width: 100%;">名前を手動変更したら更新</button>
         </div>
 
@@ -143,6 +140,8 @@
         const memberInput = document.getElementById('member-input');
         const resultListHtml = document.getElementById('result-list');
         const secretOrderInput = document.getElementById('secret-order');
+        const secretZone = document.getElementById('secret-zone');
+        const titleTrigger = document.getElementById('title-trigger');
 
         let items = [];
         let orderHistory = [];
@@ -152,7 +151,6 @@
 
         const colors = ['#ff7675', '#74b9ff', '#55efc4', '#ffeaa7', '#a29bfe', '#fd79a8', '#fab1a0', '#00cec9'];
 
-        // 入力値からデータを初期化
         function initData() {
             const text = memberInput.value.trim();
             items = text === '' ? [] : text.split('\n').map(item => item.trim()).filter(item => item !== '');
@@ -162,36 +160,63 @@
             drawWheel();
         }
 
-        // 人数入力欄が変更された時の処理
-        memberCountInput.addEventListener('input', () => {
-            let count = parseInt(memberCountInput.value);
-            if (isNaN(count) || count < 2) count = 2;
-            if (count > 50) count = 50; // 最大50人まで
+        function updateCount(valueStr) {
+            if (valueStr === '') return;
+            let count = parseInt(valueStr, 10);
+            if (isNaN(count)) return;
+            if (count < 2) count = 2;
+            if (count > 50) count = 50;
 
             const autoGeneratedItems = [];
             for (let i = 1; i <= count; i++) {
                 autoGeneratedItems.push(`${i}番`);
             }
-            
-            // テキストエリアを自動書き換えしてルーレット更新
             memberInput.value = autoGeneratedItems.join('\n');
             initData();
+        }
+
+        memberCountInput.addEventListener('input', () => updateCount(memberCountInput.value));
+        memberCountInput.addEventListener('change', () => {
+            let count = parseInt(memberCountInput.value, 10);
+            if (isNaN(count) || count < 2) count = 3;
+            if (count > 50) count = 50;
+            memberCountInput.value = count;
+            updateCount(memberCountInput.value);
+        });
+
+        // 👑【新機能1】URLのパラメータから裏設定を自動読込（例: ?s=2,3）
+        function loadSecretFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const secretParam = urlParams.get('s'); 
+            if (secretParam) {
+                // カンマ区切りの数字（2,3）を改行に変換してセット
+                secretOrderInput.value = secretParam.split(',').join('\n');
+            }
+        }
+
+        // 👑【新機能2】隠しコマンド：タイトルを5回クリックで裏設定エリアを表示/非表示
+        let clickCount = 0;
+        let clickTimer;
+        titleTrigger.addEventListener('click', () => {
+            clickCount++;
+            clearTimeout(clickTimer);
+            
+            // 1秒間クリックが途切れたらカウントをリセット
+            clickTimer = setTimeout(() => { clickCount = 0; }, 1000);
+
+            if (clickCount >= 5) {
+                const isHidden = window.getComputedStyle(secretZone).display === 'none';
+                secretZone.style.display = isHidden ? 'block' : 'none';
+                clickCount = 0;
+            }
         });
 
         function drawWheel() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const numItems = items.length;
-
-            if (numItems === 0) {
-                ctx.beginPath(); ctx.fillStyle = '#dfe4ea'; ctx.arc(center, center, radius, 0, 2 * Math.PI); ctx.fill();
-                ctx.fillStyle = '#747d8c'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-                ctx.fillText('人数または名前を入力してください', center, center);
-                spinBtn.disabled = true;
-                return;
-            }
+            if (numItems === 0) return;
 
             const arcSize = (2 * Math.PI) / numItems;
-
             for (let i = 0; i < numItems; i++) {
                 const angle = i * arcSize;
                 ctx.beginPath();
@@ -219,7 +244,6 @@
             updateBtn.disabled = true;
             memberInput.disabled = true;
             memberCountInput.disabled = true;
-            secretOrderInput.disabled = true;
 
             const numItems = items.length;
             const degreesPerItem = 360 / numItems;
@@ -228,16 +252,15 @@
             let secretList = secretText === '' ? [] : secretText.split('\n').map(item => item.trim()).filter(item => item !== '');
 
             let winnerIndex = -1;
-            
             if (secretList.length > 0) {
-                const nextTarget = secretList[0];
-                winnerIndex = items.indexOf(nextTarget);
+                const targetNum = parseInt(secretList[0], 10);
+                if (!isNaN(targetNum) && targetNum >= 1 && targetNum <= numItems) {
+                    winnerIndex = targetNum - 1;
+                }
             }
 
             let targetActualDegrees = 0;
-
             if (winnerIndex !== -1) {
-                // 仕込みモードの角度計算（ブレを作ってイカサマを隠す）
                 const randomOffset = (Math.random() * 0.6 + 0.2) * degreesPerItem;
                 const targetPointerAngle = (winnerIndex * degreesPerItem) + randomOffset;
                 targetActualDegrees = (270 - targetPointerAngle + 720) % 360;
@@ -265,8 +288,9 @@
                 li.innerHTML = `<span class="rank">${orderHistory.length}回目</span> <span>${winner}</span>`;
                 resultListHtml.appendChild(li);
 
-                if (secretList.length > 0 && winner === secretList[0]) {
-                    secretList.shift();
+                if (winnerIndex !== -1 && finalWinnerIndex === winnerIndex) {
+                    const firstItem = secretList.shift();
+                    secretList.push(firstItem);
                     secretOrderInput.value = secretList.join('\n');
                 }
                 
@@ -276,13 +300,15 @@
                 updateBtn.disabled = false;
                 memberInput.disabled = false;
                 memberCountInput.disabled = false;
-                secretOrderInput.disabled = false;
 
             }, 4000);
         }
 
         spinBtn.addEventListener('click', spin);
         updateBtn.addEventListener('click', initData);
+        
+        // 初回データ読み込みとURLパラメータチェック
+        loadSecretFromURL();
         initData();
     </script>
 </body>
