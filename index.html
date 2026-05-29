@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>クルリト | ステルスルーレット</title>
+    
+    <title>クルリト | 順番指定・名前変更ができるカスタムオンラインルーレット</title>
+    
+    <meta name="description" content="登録不要で人数やメンバーの名前を自由に変更できるシンプルなオンラインルーレットです。順番を自由にカスタムして楽しめます。発表順や決め事の決定にどうぞ。">
+
     <style>
         body {
             display: flex;
@@ -81,7 +85,7 @@
         .result-list li:last-child { border-bottom: none; font-weight: bold; color: #ff4757; background-color: #ffeaa7; border-radius: 4px; }
         .rank { font-weight: bold; color: #3742fa; }
 
-        /* 👑 裏設定エリア：完全に初期状態を非表示(none)に */
+        /* 裏設定エリア：初期状態は完全に非表示 */
         .secret-area {
             display: none;
             background-color: #fff5f5;
@@ -184,24 +188,19 @@
             updateCount(memberCountInput.value);
         });
 
-        // 👑【新機能1】URLのパラメータから裏設定を自動読込（例: ?s=2,3）
         function loadSecretFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             const secretParam = urlParams.get('s'); 
             if (secretParam) {
-                // カンマ区切りの数字（2,3）を改行に変換してセット
                 secretOrderInput.value = secretParam.split(',').join('\n');
             }
         }
 
-        // 👑【新機能2】隠しコマンド：タイトルを5回クリックで裏設定エリアを表示/非表示
         let clickCount = 0;
         let clickTimer;
         titleTrigger.addEventListener('click', () => {
             clickCount++;
             clearTimeout(clickTimer);
-            
-            // 1秒間クリックが途切れたらカウントをリセット
             clickTimer = setTimeout(() => { clickCount = 0; }, 1000);
 
             if (clickCount >= 5) {
@@ -307,7 +306,6 @@
         spinBtn.addEventListener('click', spin);
         updateBtn.addEventListener('click', initData);
         
-        // 初回データ読み込みとURLパラメータチェック
         loadSecretFromURL();
         initData();
     </script>
